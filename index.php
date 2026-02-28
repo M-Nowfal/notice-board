@@ -134,7 +134,7 @@ $categories = fetchCategories($pdo);
         </section>
 
         <section>
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center justify-between m-4">
                 <h2 class="text-lg sm:text-xl font-semibold">Active Notices</h2>
                 <p id="notice-count" class="hidden md:block text-sm text-slate-500 dark:text-slate-400"></p>
             </div>
