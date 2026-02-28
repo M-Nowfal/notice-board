@@ -1,0 +1,64 @@
+﻿-- ONLINE NOTICE BOARD DATABASE
+CREATE DATABASE IF NOT EXISTS online_notice_board;
+USE online_notice_board;
+
+CREATE TABLE IF NOT EXISTS admin (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO admin (name, username, password)
+VALUES ('System Administrator', 'admin', 'e6e061838856bf47e1de730719fb2609')
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    password = VALUES(password);
+
+CREATE TABLE IF NOT EXISTS category (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    category_name VARCHAR(100) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO category (category_name)
+VALUES ('Academics'), ('Sports'), ('Events'), ('General')
+ON DUPLICATE KEY UPDATE category_name = VALUES(category_name);
+
+CREATE TABLE IF NOT EXISTS notice (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    category INT NOT NULL,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expiresAt DATETIME NOT NULL,
+    file VARCHAR(255) NULL,
+    admin_id INT NOT NULL,
+    pin TINYINT DEFAULT 0,
+    views INT DEFAULT 0,
+    priority ENUM('Low', 'Medium', 'High') DEFAULT 'Low',
+    visibility ENUM('public', 'students', 'staff') DEFAULT 'public',
+    is_deleted TINYINT DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_notice_category FOREIGN KEY (category) REFERENCES category(id),
+    CONSTRAINT fk_notice_admin FOREIGN KEY (admin_id) REFERENCES admin(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS notice_files (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    notice_id INT NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    CONSTRAINT fk_notice_files_notice FOREIGN KEY (notice_id) REFERENCES notice(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    notice_id INT NOT NULL,
+    message VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_notifications_notice FOREIGN KEY (notice_id) REFERENCES notice(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Auto delete expired notices query (use with CRON/EVENT scheduler):
+-- DELETE FROM notice WHERE expiresAt < NOW();
+-- Note: SQL-only deletion removes DB rows but cannot delete physical files in assets/uploads.
+-- Keep application-level cleanupExpiredNotices() enabled to remove linked upload files.
