@@ -9,6 +9,7 @@ cleanupExpiredNotices($pdo);
 $categories = fetchCategories($pdo);
 $categoryIds = array_map(static fn(array $cat): int => (int) $cat['id'], $categories);
 $isSystemAdmin = isSystemAdmin();
+$attachmentPreviewVersion = (string) (@filemtime(__DIR__ . '/../assets/js/attachment-preview.js') ?: time());
 
 $noticeId = isset($_GET['id']) ? (int) $_GET['id'] : (int) ($_POST['notice_id'] ?? 0);
 if ($noticeId <= 0) {
@@ -116,7 +117,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $removeLegacy = isset($_POST['remove_legacy']) && $hasLegacyFile;
 
-    $uploads = processUploadedFiles($_FILES['attachments'] ?? []);
+    $currentFileIds = array_map(static fn(array $file): int => (int) $file['id'], $noticeFiles);
+    $validRemoveFileIds = array_values(array_intersect($removeFileIds, $currentFileIds));
+    $currentAttachmentCount = count($noticeFiles) + ($hasLegacyFile ? 1 : 0);
+    $remainingAttachmentCount = $currentAttachmentCount - count($validRemoveFileIds) - ($removeLegacy ? 1 : 0);
+    if ($remainingAttachmentCount < 0) {
+        $remainingAttachmentCount = 0;
+    }
+
+    $uploads = processUploadedFiles($_FILES['attachments'] ?? [], $remainingAttachmentCount);
     if ($uploads['errors']) {
         foreach ($uploads['errors'] as $uploadError) {
             $errors[] = $uploadError;
@@ -489,7 +498,7 @@ $hasLegacyFile = $legacyFile !== '' && !in_array($legacyFile, $filePaths, true);
                                 <i class="fa-solid fa-upload"></i>
                             </span>
                             <span class="font-medium">Click to choose files</span>
-                            <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">PDF, DOC, DOCX, PNG, JPG, JPEG, GIF, WEBP (max 8MB each)</span>
+                            <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">PDF, DOC, DOCX, PNG, JPG, JPEG, GIF, WEBP (max 8MB each, up to 5 files total)</span>
                             <input
                                 id="attachments"
                                 name="attachments[]"
@@ -499,6 +508,7 @@ $hasLegacyFile = $legacyFile !== '' && !in_array($legacyFile, $filePaths, true);
                                 class="hidden"
                                 data-attachment-preview="attachments-preview"
                                 data-attachment-count="attachments-selected-count"
+                                data-max-files="5"
                             >
                         </label>
                         <p id="attachments-selected-count" class="text-xs text-slate-500 dark:text-slate-400 mt-3">No files selected yet.</p>
@@ -518,7 +528,7 @@ $hasLegacyFile = $legacyFile !== '' && !in_array($legacyFile, $filePaths, true);
         </main>
     </div>
 
-    <script src="../assets/js/attachment-preview.js"></script>
+    <script src="../assets/js/attachment-preview.js?v=<?php echo escape($attachmentPreviewVersion); ?>"></script>
     <script>
         if (window.onbTheme && typeof window.onbTheme.initThemeToggle === 'function') {
             window.onbTheme.initThemeToggle('theme-toggle');

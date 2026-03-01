@@ -332,12 +332,22 @@ function isAllowedPriority(string $priority): bool
     return in_array($priority, ['Low', 'Medium', 'High'], true);
 }
 
-function processUploadedFiles(array $fileInput): array
+function processUploadedFiles(array $fileInput, int $existingCount = 0): array
 {
     $result = [
         'paths' => [],
         'errors' => [],
     ];
+
+    $maxAttachments = 5;
+    if ($existingCount < 0) {
+        $existingCount = 0;
+    }
+
+    if ($existingCount >= $maxAttachments) {
+        $result['errors'][] = 'Maximum ' . $maxAttachments . ' attachments allowed per notice.';
+        return $result;
+    }
 
     if (!isset($fileInput['name']) || !is_array($fileInput['name'])) {
         return $result;
@@ -346,6 +356,8 @@ function processUploadedFiles(array $fileInput): array
     $uploadDir = ensureUploadDirectory();
     $allowedExtensions = allowedUploadExtensions();
     $maxSize = 8 * 1024 * 1024;
+    $pendingUploads = [];
+    $seenSignatures = [];
 
     foreach ($fileInput['name'] as $index => $originalName) {
         $errorCode = (int) ($fileInput['error'][$index] ?? UPLOAD_ERR_NO_FILE);
@@ -360,8 +372,16 @@ function processUploadedFiles(array $fileInput): array
         }
 
         $tmpName = (string) ($fileInput['tmp_name'][$index] ?? '');
+        if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+            $result['errors'][] = 'Invalid uploaded file at index ' . $index . '.';
+            continue;
+        }
+
         $size = (int) ($fileInput['size'][$index] ?? 0);
         $baseName = basename((string) $originalName);
+        if ($baseName === '' || $baseName === '.' || $baseName === '..') {
+            $baseName = 'attachment_' . $index;
+        }
         $extension = strtolower(pathinfo($baseName, PATHINFO_EXTENSION));
 
         if (!in_array($extension, $allowedExtensions, true)) {
@@ -374,6 +394,34 @@ function processUploadedFiles(array $fileInput): array
             continue;
         }
 
+        $hash = hash_file('sha256', $tmpName);
+        $signature = $hash !== false
+            ? ($size . '|' . $hash)
+            : (strtolower($baseName) . '|' . $size);
+        if (isset($seenSignatures[$signature])) {
+            $result['errors'][] = 'Duplicate attachment selected: ' . $baseName;
+            continue;
+        }
+        $seenSignatures[$signature] = true;
+
+        $pendingUploads[] = [
+            'tmp_name' => $tmpName,
+            'base_name' => $baseName,
+        ];
+    }
+
+    if ($result['errors']) {
+        return $result;
+    }
+
+    if (($existingCount + count($pendingUploads)) > $maxAttachments) {
+        $result['errors'][] = 'Maximum ' . $maxAttachments . ' attachments allowed per notice.';
+        return $result;
+    }
+
+    foreach ($pendingUploads as $upload) {
+        $tmpName = (string) $upload['tmp_name'];
+        $baseName = (string) $upload['base_name'];
         $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $baseName) ?? 'file';
         $newName = bin2hex(random_bytes(10)) . '_' . $safeName;
         $destination = $uploadDir . DIRECTORY_SEPARATOR . $newName;

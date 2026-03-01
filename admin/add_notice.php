@@ -8,6 +8,7 @@ $pdo = db();
 cleanupExpiredNotices($pdo);
 $categories = fetchCategories($pdo);
 $categoryIds = array_map(static fn(array $cat): int => (int) $cat['id'], $categories);
+$attachmentPreviewVersion = (string) (@filemtime(__DIR__ . '/../assets/js/attachment-preview.js') ?: time());
 
 $errors = [];
 $form = [
@@ -63,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Invalid visibility value.';
     }
 
-    $uploads = processUploadedFiles($_FILES['attachments'] ?? []);
+    $uploads = processUploadedFiles($_FILES['attachments'] ?? [], 0);
     if ($uploads['errors']) {
         foreach ($uploads['errors'] as $uploadError) {
             $errors[] = $uploadError;
@@ -338,7 +339,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <i class="fa-solid fa-upload"></i>
                             </span>
                             <span class="font-medium">Click to choose files</span>
-                            <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">PDF, DOC, DOCX, PNG, JPG, JPEG, GIF, WEBP (max 8MB each)</span>
+                            <span class="text-xs text-slate-500 dark:text-slate-400 mt-1">PDF, DOC, DOCX, PNG, JPG, JPEG, GIF, WEBP (max 8MB each, up to 5 files)</span>
                             <input
                                 id="attachments"
                                 name="attachments[]"
@@ -348,13 +349,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 class="hidden"
                                 data-attachment-preview="attachments-preview"
                                 data-attachment-count="attachments-selected-count"
+                                data-max-files="5"
                             >
                         </label>
                         <p id="attachments-selected-count" class="text-xs text-slate-500 dark:text-slate-400 mt-3">No files selected yet.</p>
-                        <div id="attachments-preview" class="hidden mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+                        <div id="attachments-preview" class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
                     </section>
 
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-2 pt-1">
+                    <div class="flex flex-col sm:flex-row-reverse sm:items-center justify-start gap-2 pt-1">
                         <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white px-5 py-3 text-sm font-medium shadow-lg shadow-blue-600/30">
                             <i class="fa-solid fa-paper-plane"></i> Publish Notice
                         </button>
@@ -367,7 +369,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </main>
     </div>
 
-    <script src="../assets/js/attachment-preview.js"></script>
+    <script src="../assets/js/attachment-preview.js?v=<?php echo escape($attachmentPreviewVersion); ?>"></script>
     <script>
         if (window.onbTheme && typeof window.onbTheme.initThemeToggle === 'function') {
             window.onbTheme.initThemeToggle('theme-toggle');
