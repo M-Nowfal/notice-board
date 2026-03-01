@@ -15,6 +15,7 @@ $sql = "
     SELECT
         n.id,
         n.title,
+        n.description,
         n.createdAt,
         n.expiresAt,
         n.file,
@@ -40,7 +41,7 @@ $sql = "
 $params = [];
 
 if ($search !== '') {
-    $sql .= " AND n.title LIKE :search ";
+    $sql .= " AND (n.title LIKE :search OR COALESCE(n.description, '') LIKE :search) ";
     $params['search'] = '%' . $search . '%';
 }
 
@@ -128,6 +129,10 @@ foreach ($notices as $notice):
     $createdAt = date('d M Y, h:i A', strtotime((string) $notice['createdAt']));
     $expiresAt = date('d M Y, h:i A', strtotime((string) $notice['expiresAt']));
     $attachments = max($fileCount, $filePath !== '' ? 1 : 0);
+    $description = trim((string) ($notice['description'] ?? ''));
+    $descriptionPreview = $description !== '' && mb_strlen($description) > 180
+        ? mb_substr($description, 0, 177) . '...'
+        : $description;
     ?>
     <article class="notice-card group relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-700/70 bg-white/90 dark:bg-slate-900/75 shadow-[0_12px_35px_-20px_rgba(15,23,42,0.9)]" data-card-id="<?php echo (int) $notice['id']; ?>">
         <div class="h-1.5 <?php echo $priorityStripe; ?>"></div>
@@ -142,6 +147,12 @@ foreach ($notices as $notice):
                     </span>
                 <?php endif; ?>
             </div>
+
+            <?php if ($descriptionPreview !== ''): ?>
+                <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                    <?php echo nl2br(escape($descriptionPreview)); ?>
+                </p>
+            <?php endif; ?>
 
             <div class="flex flex-wrap items-center gap-2 text-xs">
                 <span class="badge-pill <?php echo $priorityClass; ?>"><?php echo escape($priority); ?> Priority</span>

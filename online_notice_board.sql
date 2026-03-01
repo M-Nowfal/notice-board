@@ -28,6 +28,7 @@ ON DUPLICATE KEY UPDATE category_name = VALUES(category_name);
 CREATE TABLE IF NOT EXISTS notice (
     id INT PRIMARY KEY AUTO_INCREMENT,
     title VARCHAR(255) NOT NULL,
+    description TEXT NULL,
     category INT NOT NULL,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     expiresAt DATETIME NOT NULL,
@@ -42,6 +43,23 @@ CREATE TABLE IF NOT EXISTS notice (
     CONSTRAINT fk_notice_category FOREIGN KEY (category) REFERENCES category(id),
     CONSTRAINT fk_notice_admin FOREIGN KEY (admin_id) REFERENCES admin(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Add description column for existing databases where notice table already exists:
+SET @notice_description_exists = (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'notice'
+      AND COLUMN_NAME = 'description'
+);
+SET @notice_description_sql = IF(
+    @notice_description_exists = 0,
+    'ALTER TABLE notice ADD COLUMN description TEXT NULL AFTER title',
+    'SELECT 1'
+);
+PREPARE notice_description_stmt FROM @notice_description_sql;
+EXECUTE notice_description_stmt;
+DEALLOCATE PREPARE notice_description_stmt;
 
 CREATE TABLE IF NOT EXISTS notice_files (
     id INT PRIMARY KEY AUTO_INCREMENT,

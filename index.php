@@ -6,6 +6,8 @@ require_once __DIR__ . '/db.php';
 $pdo = db();
 cleanupExpiredNotices($pdo);
 $categories = fetchCategories($pdo);
+$themeVersion = (string) (@filemtime(__DIR__ . '/theme.js') ?: time());
+$mainJsVersion = (string) (@filemtime(__DIR__ . '/assets/js/main.js') ?: time());
 ?>
 <!DOCTYPE html>
 <html lang="en" class="h-full">
@@ -24,7 +26,7 @@ $categories = fetchCategories($pdo);
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="assets/css/style.css">
-    <script src="theme.js"></script>
+    <script src="theme.js?v=<?php echo escape($themeVersion); ?>"></script>
 </head>
 <body class="h-full text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-950 transition-colors duration-200">
     <div class="fixed inset-0 -z-10 pointer-events-none opacity-80 dark:opacity-60">
@@ -90,7 +92,7 @@ $categories = fetchCategories($pdo);
                     <label for="search" class="text-sm font-medium">Search Notices</label>
                     <div class="mt-2 relative">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input id="search" type="text" placeholder="Search by title..." class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                        <input id="search" type="text" placeholder="Search by title or description..." class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                     </div>
                 </div>
                 <div>
@@ -138,7 +140,7 @@ $categories = fetchCategories($pdo);
                 <h2 class="text-lg sm:text-xl font-semibold">Active Notices</h2>
                 <p id="notice-count" class="hidden md:block text-sm text-slate-500 dark:text-slate-400"></p>
             </div>
-            <div id="notice-container" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+            <div id="notice-container" class="grid md:grid-cols-2 gap-5"></div>
         </section>
     </main>
 
@@ -171,7 +173,7 @@ $categories = fetchCategories($pdo);
                     <label for="mobile-search" class="text-sm font-medium">Search Notices</label>
                     <div class="mt-2 relative">
                         <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                        <input id="mobile-search" type="text" placeholder="Search by title..." class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                        <input id="mobile-search" type="text" placeholder="Search by title or description..." class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 pl-10 pr-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                     </div>
                 </div>
 
@@ -218,11 +220,11 @@ $categories = fetchCategories($pdo);
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <div id="modal-content" class="p-4 sm:p-6 space-y-4"></div>
+                <div id="modal-content" class="p-4 sm:p-6 space-y-4 max-h-[85vh] overflow-auto"></div>
             </div>
         </div>
     </div>
 
-    <script src="assets/js/main.js"></script>
+    <script src="assets/js/main.js?v=<?php echo escape($mainJsVersion); ?>"></script>
 </body>
 </html>

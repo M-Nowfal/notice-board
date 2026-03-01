@@ -142,6 +142,7 @@
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                 },
+                cache: 'no-store',
             });
             const data = await response.json();
 
@@ -177,10 +178,11 @@
 
     async function openNotice(noticeId) {
         try {
-            const response = await fetch('notice_detail.php?id=' + encodeURIComponent(noticeId), {
+            const response = await fetch('notice_detail.php?id=' + encodeURIComponent(noticeId) + '&_=' + Date.now(), {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                 },
+                cache: 'no-store',
             });
             const data = await response.json();
 
@@ -190,6 +192,10 @@
 
             const notice = data.notice;
             els.modalTitle.textContent = notice.title;
+            const descriptionText = String(notice.description || '').trim();
+            const descriptionMarkup = descriptionText !== ''
+                ? `<p class="text-sm leading-relaxed whitespace-pre-line text-slate-700 dark:text-slate-200">${escapeHtml(descriptionText)}</p>`
+                : '<p class="text-sm text-slate-500 dark:text-slate-400">No description provided.</p>';
 
             const filesMarkup = notice.files.length
                 ? notice.files
@@ -231,6 +237,10 @@
                         <p class="text-slate-500 dark:text-slate-400">Views</p>
                         <p class="font-semibold mt-1">${escapeHtml(notice.views)}</p>
                     </div>
+                </div>
+                <div class="max-h-[50vh] overflow-auto rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                    <p class="text-sm font-medium mb-2">Description</p>
+                    ${descriptionMarkup}
                 </div>
                 <div>
                     <p class="text-sm font-medium mb-2">Attachments</p>

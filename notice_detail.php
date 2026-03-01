@@ -16,7 +16,7 @@ $pdo = db();
 cleanupExpiredNotices($pdo);
 
 $stmt = $pdo->prepare(
-    "SELECT n.id, n.title, n.createdAt, n.expiresAt, n.file, n.pin, n.views, n.priority, n.visibility,
+    "SELECT n.id, n.title, n.description, n.createdAt, n.expiresAt, n.file, n.pin, n.views, n.priority, n.visibility,
             c.category_name,
             a.name AS admin_name
      FROM notice n
@@ -62,6 +62,7 @@ jsonResponse([
     'notice' => [
         'id' => (int) $notice['id'],
         'title' => (string) $notice['title'],
+        'description' => (string) ($notice['description'] ?? ''),
         'category_name' => (string) $notice['category_name'],
         'admin_name' => (string) $notice['admin_name'],
         'createdAt' => (string) $notice['createdAt'],

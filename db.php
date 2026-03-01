@@ -27,6 +27,8 @@ function db(): PDO
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
 
+    ensureNoticeDescriptionColumn($pdo);
+
     return $pdo;
 }
 
@@ -143,6 +145,38 @@ function sanitizeText(?string $value, int $maxLength = 255): string
     }
 
     return $value;
+}
+
+function sanitizeMultilineText(?string $value, int $maxLength = 5000): string
+{
+    $value = trim((string) $value);
+    // Keep line breaks/tabs for textarea content while stripping unsafe control chars.
+    $value = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $value) ?? '';
+
+    if (mb_strlen($value) > $maxLength) {
+        $value = mb_substr($value, 0, $maxLength);
+    }
+
+    return $value;
+}
+
+function ensureNoticeDescriptionColumn(PDO $pdo): void
+{
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    try {
+        $checkStmt = $pdo->query("SHOW COLUMNS FROM notice LIKE 'description'");
+        $exists = (bool) $checkStmt->fetch();
+        if (!$exists) {
+            $pdo->exec('ALTER TABLE notice ADD COLUMN description TEXT NULL AFTER title');
+        }
+    } catch (Throwable $e) {
+        // Do not block app startup if schema migration cannot run here.
+    }
 }
 
 function normalizeNoticeIds(array $noticeIds): array

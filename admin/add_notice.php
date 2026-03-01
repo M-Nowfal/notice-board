@@ -12,6 +12,7 @@ $categoryIds = array_map(static fn(array $cat): int => (int) $cat['id'], $catego
 $errors = [];
 $form = [
     'title' => '',
+    'description' => '',
     'category' => '',
     'expiresAt' => '',
     'priority' => 'Low',
@@ -23,6 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $token = $_POST['csrf_token'] ?? null;
 
     $form['title'] = sanitizeText($_POST['title'] ?? '', 255);
+    $form['description'] = sanitizeMultilineText($_POST['description'] ?? '', 5000);
     $form['category'] = (string) (int) ($_POST['category'] ?? 0);
     $form['expiresAt'] = sanitizeText($_POST['expiresAt'] ?? '', 25);
     $form['priority'] = sanitizeText($_POST['priority'] ?? 'Low', 10);
@@ -35,6 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($form['title'] === '') {
         $errors[] = 'Notice title is required.';
+    }
+
+    if ($form['description'] === '') {
+        $errors[] = 'Notice description is required.';
     }
 
     $category = (int) $form['category'];
@@ -71,14 +77,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare(
-                'INSERT INTO notice (title, category, expiresAt, file, admin_id, pin, priority, visibility)
-                 VALUES (:title, :category, :expiresAt, :file, :admin_id, :pin, :priority, :visibility)'
+                'INSERT INTO notice (title, description, category, expiresAt, file, admin_id, pin, priority, visibility)
+                 VALUES (:title, :description, :category, :expiresAt, :file, :admin_id, :pin, :priority, :visibility)'
             );
 
             $primaryFile = $uploads['paths'][0] ?? null;
 
             $stmt->execute([
                 'title' => $form['title'],
+                'description' => $form['description'],
                 'category' => $category,
                 'expiresAt' => $expiresFormatted,
                 'file' => $primaryFile,
@@ -248,6 +255,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div>
                                 <label for="title" class="text-sm font-medium">Notice Title</label>
                                 <input id="title" name="title" type="text" required maxlength="255" value="<?php echo escape($form['title']); ?>" placeholder="Example: Mid-term exam schedule updated" class="mt-2 w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                            </div>
+
+                            <div>
+                                <label for="description" class="text-sm font-medium">Notice Description</label>
+                                <textarea id="description" name="description" required rows="5" maxlength="5000" placeholder="Write the full notice details here..." class="mt-2 w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"><?php echo escape($form['description']); ?></textarea>
                             </div>
 
                             <div class="grid sm:grid-cols-2 gap-4">

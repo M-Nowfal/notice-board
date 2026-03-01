@@ -18,7 +18,7 @@ if ($noticeId <= 0) {
 }
 
 $noticeQuery = "
-    SELECT n.id, n.title, n.category, n.expiresAt, n.file, n.pin, n.priority, n.visibility,
+    SELECT n.id, n.title, n.description, n.category, n.expiresAt, n.file, n.pin, n.priority, n.visibility,
            a.name AS owner_name, a.username AS owner_username
     FROM notice n
     INNER JOIN admin a ON a.id = n.admin_id
@@ -53,6 +53,7 @@ $hasLegacyFile = $legacyFile !== '' && !in_array($legacyFile, $filePaths, true);
 $errors = [];
 $form = [
     'title' => (string) $notice['title'],
+    'description' => (string) ($notice['description'] ?? ''),
     'category' => (string) (int) $notice['category'],
     'expiresAt' => date('Y-m-d\TH:i', strtotime((string) $notice['expiresAt'])),
     'priority' => (string) $notice['priority'],
@@ -63,6 +64,7 @@ $form = [
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $token = $_POST['csrf_token'] ?? null;
     $form['title'] = sanitizeText($_POST['title'] ?? '', 255);
+    $form['description'] = sanitizeMultilineText($_POST['description'] ?? '', 5000);
     $form['category'] = (string) (int) ($_POST['category'] ?? 0);
     $form['expiresAt'] = sanitizeText($_POST['expiresAt'] ?? '', 25);
     $form['priority'] = sanitizeText($_POST['priority'] ?? 'Low', 10);
@@ -75,6 +77,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($form['title'] === '') {
         $errors[] = 'Notice title is required.';
+    }
+
+    if ($form['description'] === '') {
+        $errors[] = 'Notice description is required.';
     }
 
     $category = (int) $form['category'];
@@ -169,6 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $updateSql = 'UPDATE notice
                           SET title = :title,
+                              description = :description,
                               category = :category,
                               expiresAt = :expiresAt,
                               file = :file,
@@ -178,6 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                           WHERE id = :id';
             $updateParams = [
                 'title' => $form['title'],
+                'description' => $form['description'],
                 'category' => $category,
                 'expiresAt' => $expiresAt->format('Y-m-d H:i:s'),
                 'file' => $primaryFile,
@@ -362,6 +370,11 @@ $hasLegacyFile = $legacyFile !== '' && !in_array($legacyFile, $filePaths, true);
                             <div>
                                 <label for="title" class="text-sm font-medium">Notice Title</label>
                                 <input id="title" name="title" type="text" required maxlength="255" value="<?php echo escape($form['title']); ?>" class="mt-2 w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                            </div>
+
+                            <div>
+                                <label for="description" class="text-sm font-medium">Notice Description</label>
+                                <textarea id="description" name="description" required rows="5" maxlength="5000" class="mt-2 w-full rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:outline-none"><?php echo escape($form['description']); ?></textarea>
                             </div>
 
                             <div class="grid sm:grid-cols-2 gap-4">

@@ -15,6 +15,7 @@ $sql = "
     SELECT
         n.id,
         n.title,
+        n.description,
         n.createdAt,
         n.expiresAt,
         n.pin,
@@ -165,7 +166,7 @@ $notices = $stmt->fetchAll();
                 </div>
 
                 <div class="mb-4">
-                    <input id="dashboard-search" type="text" placeholder="<?php echo $isSystemAdmin ? 'Search by title or owner...' : 'Search your notices...'; ?>" class="w-full sm:max-w-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                    <input id="dashboard-search" type="text" placeholder="<?php echo $isSystemAdmin ? 'Search by title, description, or owner...' : 'Search your notices by title or description...'; ?>" class="w-full sm:max-w-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                 </div>
 
                 <div id="dashboard-mobile-list" class="md:hidden space-y-3">
@@ -177,9 +178,14 @@ $notices = $stmt->fetchAll();
                         <?php foreach ($notices as $notice): ?>
                             <?php
                                 $searchText = strtolower((string) $notice['title']);
+                                $searchText .= ' ' . strtolower((string) ($notice['description'] ?? ''));
                                 if ($isSystemAdmin) {
                                     $searchText .= ' ' . strtolower((string) $notice['owner_name']) . ' ' . strtolower((string) $notice['owner_username']);
                                 }
+                                $description = trim((string) ($notice['description'] ?? ''));
+                                $descriptionPreview = $description !== '' && mb_strlen($description) > 140
+                                    ? mb_substr($description, 0, 137) . '...'
+                                    : $description;
                             ?>
                             <article data-card-id="<?php echo (int) $notice['id']; ?>" data-search="<?php echo escape($searchText); ?>" class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/75 p-4 space-y-3 shadow-lg">
                                 <div class="flex items-start justify-between gap-3">
@@ -191,6 +197,12 @@ $notices = $stmt->fetchAll();
                                         <i class="fa-solid fa-thumbtack"></i> Pinned
                                     </span>
                                 </div>
+
+                                <?php if ($descriptionPreview !== ''): ?>
+                                    <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                                        <?php echo nl2br(escape($descriptionPreview)); ?>
+                                    </p>
+                                <?php endif; ?>
 
                                 <?php if ($isSystemAdmin): ?>
                                     <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/50 px-3 py-2 text-sm">
@@ -271,13 +283,23 @@ $notices = $stmt->fetchAll();
                                 <?php foreach ($notices as $notice): ?>
                                     <?php
                                         $searchText = strtolower((string) $notice['title']);
+                                        $searchText .= ' ' . strtolower((string) ($notice['description'] ?? ''));
                                         if ($isSystemAdmin) {
                                             $searchText .= ' ' . strtolower((string) $notice['owner_name']) . ' ' . strtolower((string) $notice['owner_username']);
                                         }
+                                        $description = trim((string) ($notice['description'] ?? ''));
+                                        $descriptionPreview = $description !== '' && mb_strlen($description) > 120
+                                            ? mb_substr($description, 0, 117) . '...'
+                                            : $description;
                                     ?>
                                     <tr data-row-id="<?php echo (int) $notice['id']; ?>" data-search="<?php echo escape($searchText); ?>">
                                         <td class="px-4 py-3 align-top">
                                             <div class="font-medium"><?php echo escape((string) $notice['title']); ?></div>
+                                            <?php if ($descriptionPreview !== ''): ?>
+                                                <div class="text-xs text-slate-500 dark:text-slate-300 mt-1 leading-relaxed">
+                                                    <?php echo nl2br(escape($descriptionPreview)); ?>
+                                                </div>
+                                            <?php endif; ?>
                                             <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">
                                                 Created: <?php echo date('d M Y, h:i A', strtotime((string) $notice['createdAt'])); ?>
                                             </div>
