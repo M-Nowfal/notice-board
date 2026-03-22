@@ -28,6 +28,7 @@ function db(): PDO
     ]);
 
     ensureNoticeDescriptionColumn($pdo);
+    ensureExpiredNoticeTables($pdo);
 
     return $pdo;
 }
@@ -179,6 +180,51 @@ function ensureNoticeDescriptionColumn(PDO $pdo): void
     }
 }
 
+function ensureExpiredNoticeTables(PDO $pdo): void
+{
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    try {
+        $pdo->exec(
+            "CREATE TABLE IF NOT EXISTS expired_notice (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                original_notice_id INT NOT NULL UNIQUE,
+                title VARCHAR(255) NOT NULL,
+                description TEXT NULL,
+                category INT NULL,
+                category_name VARCHAR(100) NULL,
+                createdAt DATETIME NULL,
+                expiresAt DATETIME NOT NULL,
+                file VARCHAR(255) NULL,
+                admin_id INT NULL,
+                admin_name VARCHAR(100) NULL,
+                pin TINYINT DEFAULT 0,
+                views INT DEFAULT 0,
+                priority ENUM('Low', 'Medium', 'High') DEFAULT 'Low',
+                visibility ENUM('public', 'students', 'staff') DEFAULT 'public',
+                archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NULL DEFAULT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+
+        $pdo->exec(
+            "CREATE TABLE IF NOT EXISTS expired_notice_files (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                expired_notice_id INT NOT NULL,
+                file_path VARCHAR(255) NOT NULL,
+                CONSTRAINT fk_expired_notice_files_notice
+                    FOREIGN KEY (expired_notice_id) REFERENCES expired_notice(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+        );
+    } catch (Throwable $e) {
+        // Do not block app startup if archive table setup cannot run here.
+    }
+}
+
 function normalizeNoticeIds(array $noticeIds): array
 {
     $normalized = [];
@@ -273,21 +319,185 @@ function removeFilesFromDisk(array $paths): void
 
 function cleanupExpiredNotices(PDO $pdo): void
 {
-    $expiredIdsStmt = $pdo->query('SELECT id FROM notice WHERE expiresAt < NOW()');
-    $expiredIds = normalizeNoticeIds($expiredIdsStmt->fetchAll(PDO::FETCH_COLUMN));
-    if (!$expiredIds) {
+    $activeExpiredNoticesStmt = $pdo->query(
+        "SELECT
+            n.id,
+            n.title,
+            n.description,
+            n.category,
+            c.category_name,
+            n.createdAt,
+            n.expiresAt,
+            n.file,
+            n.admin_id,
+            a.name AS admin_name,
+            n.pin,
+            n.views,
+            n.priority,
+            n.visibility,
+            n.updated_at
+         FROM notice n
+         LEFT JOIN category c ON c.id = n.category
+         LEFT JOIN admin a ON a.id = n.admin_id
+         WHERE n.is_deleted = 0
+           AND n.expiresAt < NOW()"
+    );
+    $activeExpiredNotices = $activeExpiredNoticesStmt->fetchAll();
+    $activeExpiredIds = normalizeNoticeIds(array_column($activeExpiredNotices, 'id'));
+
+    $softDeletedExpiredIdsStmt = $pdo->query(
+        'SELECT id FROM notice WHERE is_deleted = 1 AND expiresAt < NOW()'
+    );
+    $softDeletedExpiredIds = normalizeNoticeIds($softDeletedExpiredIdsStmt->fetchAll(PDO::FETCH_COLUMN));
+
+    if (!$activeExpiredIds && !$softDeletedExpiredIds) {
         return;
     }
 
-    $deletedPaths = [];
+    $filesByNoticeId = [];
+    if ($activeExpiredIds) {
+        $placeholders = sqlInPlaceholders(count($activeExpiredIds));
+        $fileRowsStmt = $pdo->prepare(
+            'SELECT notice_id, file_path FROM notice_files WHERE notice_id IN (' . $placeholders . ') ORDER BY id ASC'
+        );
+        $fileRowsStmt->execute($activeExpiredIds);
+        $fileRows = $fileRowsStmt->fetchAll();
+
+        foreach ($fileRows as $fileRow) {
+            $noticeId = (int) ($fileRow['notice_id'] ?? 0);
+            if ($noticeId <= 0) {
+                continue;
+            }
+
+            if (!isset($filesByNoticeId[$noticeId])) {
+                $filesByNoticeId[$noticeId] = [];
+            }
+
+            $path = trim((string) ($fileRow['file_path'] ?? ''));
+            if ($path !== '') {
+                $filesByNoticeId[$noticeId][] = $path;
+            }
+        }
+    }
 
     try {
         $pdo->beginTransaction();
-        $deletedPaths = detachNoticeAttachments($pdo, $expiredIds);
 
-        $placeholders = sqlInPlaceholders(count($expiredIds));
-        $deleteStmt = $pdo->prepare('DELETE FROM notice WHERE id IN (' . $placeholders . ')');
-        $deleteStmt->execute($expiredIds);
+        if ($activeExpiredIds) {
+            $archiveStmt = $pdo->prepare(
+                'INSERT INTO expired_notice (
+                    original_notice_id,
+                    title,
+                    description,
+                    category,
+                    category_name,
+                    createdAt,
+                    expiresAt,
+                    file,
+                    admin_id,
+                    admin_name,
+                    pin,
+                    views,
+                    priority,
+                    visibility,
+                    updated_at
+                ) VALUES (
+                    :original_notice_id,
+                    :title,
+                    :description,
+                    :category,
+                    :category_name,
+                    :createdAt,
+                    :expiresAt,
+                    :file,
+                    :admin_id,
+                    :admin_name,
+                    :pin,
+                    :views,
+                    :priority,
+                    :visibility,
+                    :updated_at
+                )
+                ON DUPLICATE KEY UPDATE
+                    title = VALUES(title),
+                    description = VALUES(description),
+                    category = VALUES(category),
+                    category_name = VALUES(category_name),
+                    createdAt = VALUES(createdAt),
+                    expiresAt = VALUES(expiresAt),
+                    file = VALUES(file),
+                    admin_id = VALUES(admin_id),
+                    admin_name = VALUES(admin_name),
+                    pin = VALUES(pin),
+                    views = VALUES(views),
+                    priority = VALUES(priority),
+                    visibility = VALUES(visibility),
+                    updated_at = VALUES(updated_at)'
+            );
+
+            $expiredNoticeIdStmt = $pdo->prepare(
+                'SELECT id FROM expired_notice WHERE original_notice_id = :original_notice_id LIMIT 1'
+            );
+            $clearExpiredFilesStmt = $pdo->prepare(
+                'DELETE FROM expired_notice_files WHERE expired_notice_id = :expired_notice_id'
+            );
+            $insertExpiredFileStmt = $pdo->prepare(
+                'INSERT INTO expired_notice_files (expired_notice_id, file_path) VALUES (:expired_notice_id, :file_path)'
+            );
+
+            foreach ($activeExpiredNotices as $expiredNotice) {
+                $originalNoticeId = (int) ($expiredNotice['id'] ?? 0);
+                if ($originalNoticeId <= 0) {
+                    continue;
+                }
+
+                $archiveStmt->execute([
+                    'original_notice_id' => $originalNoticeId,
+                    'title' => (string) ($expiredNotice['title'] ?? ''),
+                    'description' => (string) ($expiredNotice['description'] ?? ''),
+                    'category' => isset($expiredNotice['category']) ? (int) $expiredNotice['category'] : null,
+                    'category_name' => ($expiredNotice['category_name'] ?? null) !== null ? (string) $expiredNotice['category_name'] : null,
+                    'createdAt' => ($expiredNotice['createdAt'] ?? null) !== null ? (string) $expiredNotice['createdAt'] : null,
+                    'expiresAt' => (string) ($expiredNotice['expiresAt'] ?? ''),
+                    'file' => ($expiredNotice['file'] ?? null) !== null && (string) $expiredNotice['file'] !== '' ? (string) $expiredNotice['file'] : null,
+                    'admin_id' => isset($expiredNotice['admin_id']) ? (int) $expiredNotice['admin_id'] : null,
+                    'admin_name' => ($expiredNotice['admin_name'] ?? null) !== null ? (string) $expiredNotice['admin_name'] : null,
+                    'pin' => (int) ($expiredNotice['pin'] ?? 0),
+                    'views' => (int) ($expiredNotice['views'] ?? 0),
+                    'priority' => (string) ($expiredNotice['priority'] ?? 'Low'),
+                    'visibility' => (string) ($expiredNotice['visibility'] ?? 'public'),
+                    'updated_at' => ($expiredNotice['updated_at'] ?? null) !== null ? (string) $expiredNotice['updated_at'] : null,
+                ]);
+
+                $expiredNoticeIdStmt->execute(['original_notice_id' => $originalNoticeId]);
+                $expiredNoticeId = (int) $expiredNoticeIdStmt->fetchColumn();
+                if ($expiredNoticeId <= 0) {
+                    continue;
+                }
+
+                $clearExpiredFilesStmt->execute(['expired_notice_id' => $expiredNoticeId]);
+
+                $uniquePaths = array_values(array_unique($filesByNoticeId[$originalNoticeId] ?? []));
+                foreach ($uniquePaths as $path) {
+                    $insertExpiredFileStmt->execute([
+                        'expired_notice_id' => $expiredNoticeId,
+                        'file_path' => $path,
+                    ]);
+                }
+            }
+
+            $deleteArchivedStmt = $pdo->prepare(
+                'DELETE FROM notice WHERE id IN (' . sqlInPlaceholders(count($activeExpiredIds)) . ')'
+            );
+            $deleteArchivedStmt->execute($activeExpiredIds);
+        }
+
+        if ($softDeletedExpiredIds) {
+            $deleteSoftDeletedStmt = $pdo->prepare(
+                'DELETE FROM notice WHERE id IN (' . sqlInPlaceholders(count($softDeletedExpiredIds)) . ')'
+            );
+            $deleteSoftDeletedStmt->execute($softDeletedExpiredIds);
+        }
 
         $pdo->commit();
     } catch (Throwable $e) {
@@ -296,8 +506,6 @@ function cleanupExpiredNotices(PDO $pdo): void
         }
         throw $e;
     }
-
-    removeFilesFromDisk($deletedPaths);
 }
 
 function fetchCategories(PDO $pdo): array

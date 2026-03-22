@@ -187,6 +187,7 @@ $admins = $adminsStmt->fetchAll();
             <nav class="space-y-1">
                 <a href="dashboard.php" class="sidebar-link"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
                 <a href="add_notice.php" class="sidebar-link"><i class="fa-solid fa-plus"></i> Add Notice</a>
+                <a href="print_notices.php" class="sidebar-link"><i class="fa-solid fa-print"></i> Print Notices</a>
                 <a href="change_password.php" class="sidebar-link"><i class="fa-solid fa-key"></i> Change Password</a>
                 <a href="manage_admins.php" class="sidebar-link active"><i class="fa-solid fa-users-gear"></i> Manage Admins</a>
                 <a href="../index.php" class="sidebar-link"><i class="fa-solid fa-arrow-up-right-from-square"></i> View Site</a>
@@ -207,6 +208,7 @@ $admins = $adminsStmt->fetchAll();
                 <nav class="space-y-1">
                     <a href="dashboard.php" class="sidebar-link"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
                     <a href="add_notice.php" class="sidebar-link"><i class="fa-solid fa-plus"></i> Add Notice</a>
+                    <a href="print_notices.php" class="sidebar-link"><i class="fa-solid fa-print"></i> Print Notices</a>
                     <a href="change_password.php" class="sidebar-link"><i class="fa-solid fa-key"></i> Change Password</a>
                     <a href="manage_admins.php" class="sidebar-link active"><i class="fa-solid fa-users-gear"></i> Manage Admins</a>
                     <a href="../index.php" class="sidebar-link"><i class="fa-solid fa-arrow-up-right-from-square"></i> View Site</a>

@@ -84,6 +84,7 @@ $notices = $stmt->fetchAll();
             <nav class="space-y-1">
                 <a href="dashboard.php" class="sidebar-link active"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
                 <a href="add_notice.php" class="sidebar-link"><i class="fa-solid fa-plus"></i> Add Notice</a>
+                <a href="print_notices.php" class="sidebar-link"><i class="fa-solid fa-print"></i> Print Notices</a>
                 <a href="change_password.php" class="sidebar-link"><i class="fa-solid fa-key"></i> Change Password</a>
                 <?php if (isSystemAdmin()): ?>
                     <a href="manage_admins.php" class="sidebar-link"><i class="fa-solid fa-users-gear"></i> Manage Admins</a>
@@ -106,6 +107,7 @@ $notices = $stmt->fetchAll();
                 <nav class="space-y-1">
                     <a href="dashboard.php" class="sidebar-link active"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
                     <a href="add_notice.php" class="sidebar-link"><i class="fa-solid fa-plus"></i> Add Notice</a>
+                    <a href="print_notices.php" class="sidebar-link"><i class="fa-solid fa-print"></i> Print Notices</a>
                     <a href="change_password.php" class="sidebar-link"><i class="fa-solid fa-key"></i> Change Password</a>
                     <?php if (isSystemAdmin()): ?>
                         <a href="manage_admins.php" class="sidebar-link"><i class="fa-solid fa-users-gear"></i> Manage Admins</a>
@@ -136,16 +138,19 @@ $notices = $stmt->fetchAll();
                             <p class="mt-2 text-sm sm:text-base text-slate-600 dark:text-slate-300">
                                 <?php echo $isSystemAdmin
                                     ? 'As system admin, you can edit/delete notices from all admins.'
-                                    : 'Pinned notices stay at the top. Expired notices are auto-cleaned.'; ?>
+                                    : 'Pinned notices stay at the top. Expired notices are archived automatically.'; ?>
                             </p>
                         </div>
                     </div>
 
-                    <div class="flex w-full sm:w-auto items-center gap-2">
+                    <div class="flex w-full sm:w-auto flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <button id="theme-toggle" type="button" class="hidden lg:inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-sm hover:bg-slate-100 dark:hover:bg-slate-800">
                             <i class="fa-solid fa-sun"></i>
                             <span data-theme-label>Light</span>
                         </button>
+                        <a href="print_notices.php" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 px-4 py-2.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800">
+                            <i class="fa-solid fa-print"></i> Print Notices
+                        </a>
                         <a href="add_notice.php" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white px-4 py-2.5 text-sm font-medium shadow-lg shadow-blue-600/30">
                             <i class="fa-solid fa-plus"></i> New Notice
                         </a>

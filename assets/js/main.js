@@ -1,5 +1,6 @@
 (function () {
     const state = {
+        status: 'active',
         search: '',
         category: '',
         visibility: '',
@@ -10,6 +11,8 @@
         container: document.getElementById('notice-container'),
         count: document.getElementById('notice-count'),
         countMobile: document.getElementById('notice-count-mobile'),
+        sectionTitle: document.getElementById('notice-section-title'),
+        statusButtons: document.querySelectorAll('[data-notice-status]'),
 
         search: document.getElementById('search'),
         category: document.getElementById('category'),
@@ -98,12 +101,31 @@
     }
 
     function setNoticeCount(count) {
-        const label = `${count} notice${count === 1 ? '' : 's'} found`;
+        const label = state.status === 'expired'
+            ? `${count} expired notice${count === 1 ? '' : 's'} found`
+            : `${count} notice${count === 1 ? '' : 's'} found`;
         if (els.count) {
             els.count.textContent = label;
         }
         if (els.countMobile) {
             els.countMobile.textContent = label;
+        }
+    }
+
+    function refreshStatusButtons() {
+        els.statusButtons.forEach(function (button) {
+            const isActive = button.getAttribute('data-notice-status') === state.status;
+            button.classList.toggle('bg-blue-600', isActive);
+            button.classList.toggle('text-white', isActive);
+            button.classList.toggle('shadow-sm', isActive);
+            button.classList.toggle('text-slate-600', !isActive);
+            button.classList.toggle('dark:text-slate-300', !isActive);
+            button.classList.toggle('hover:bg-slate-100', !isActive);
+            button.classList.toggle('dark:hover:bg-slate-800', !isActive);
+        });
+
+        if (els.sectionTitle) {
+            els.sectionTitle.textContent = state.status === 'expired' ? 'Expired Notices' : 'Active Notices';
         }
     }
 
@@ -129,6 +151,7 @@
 
     async function fetchNotices() {
         const params = new URLSearchParams({
+            status: state.status,
             search: state.search,
             category: state.category,
             visibility: state.visibility,
@@ -178,12 +201,15 @@
 
     async function openNotice(noticeId) {
         try {
-            const response = await fetch('notice_detail.php?id=' + encodeURIComponent(noticeId) + '&_=' + Date.now(), {
+            const response = await fetch(
+                'notice_detail.php?id=' + encodeURIComponent(noticeId) + '&status=' + encodeURIComponent(state.status) + '&_=' + Date.now(),
+                {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
                 },
                 cache: 'no-store',
-            });
+                }
+            );
             const data = await response.json();
 
             if (!data.success) {
@@ -338,6 +364,25 @@
         }
     }
 
+    function bindStatusEvents() {
+        if (!els.statusButtons.length) {
+            return;
+        }
+
+        els.statusButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                const nextStatus = button.getAttribute('data-notice-status') === 'expired' ? 'expired' : 'active';
+                if (nextStatus === state.status) {
+                    return;
+                }
+
+                state.status = nextStatus;
+                refreshStatusButtons();
+                fetchNotices();
+            });
+        });
+    }
+
     function bindSidebarEvents() {
         if (!els.sidebar || !els.sidebarOverlay) {
             return;
@@ -404,9 +449,11 @@
 
     bindThemeToggles();
     bindFilterEvents();
+    bindStatusEvents();
     bindSidebarEvents();
     bindNoticeEvents();
     bindModalEvents();
+    refreshStatusButtons();
     syncFilterInputs();
     fetchNotices();
 })();

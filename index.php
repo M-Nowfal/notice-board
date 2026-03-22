@@ -136,8 +136,18 @@ $mainJsVersion = (string) (@filemtime(__DIR__ . '/assets/js/main.js') ?: time())
         </section>
 
         <section>
-            <div class="flex items-center justify-between m-4">
-                <h2 class="text-lg sm:text-xl font-semibold">Active Notices</h2>
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 m-4">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <h2 id="notice-section-title" class="text-lg sm:text-xl font-semibold">Active Notices</h2>
+                    <div class="flex w-full sm:w-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-1 shadow-sm">
+                        <button type="button" data-notice-status="active" class="flex-1 sm:flex-none notice-status-button rounded-xl px-3 py-2 text-sm font-medium text-center bg-blue-600 text-white shadow-sm">
+                            Active Notices
+                        </button>
+                        <button type="button" data-notice-status="expired" class="flex-1 sm:flex-none notice-status-button rounded-xl px-3 py-2 text-sm font-medium text-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+                            Expired Notices
+                        </button>
+                    </div>
+                </div>
                 <p id="notice-count" class="hidden md:block text-sm text-slate-500 dark:text-slate-400"></p>
             </div>
             <div id="notice-container" class="grid md:grid-cols-2 gap-5"></div>

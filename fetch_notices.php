@@ -10,56 +10,91 @@ $search = sanitizeText($_GET['search'] ?? '', 255);
 $categoryId = isset($_GET['category']) && $_GET['category'] !== '' ? (int) $_GET['category'] : null;
 $visibility = sanitizeText($_GET['visibility'] ?? '', 20);
 $pinnedOnly = isset($_GET['pinned_only']) ? (int) $_GET['pinned_only'] : 0;
+$status = sanitizeText($_GET['status'] ?? 'active', 20);
+$isExpiredView = $status === 'expired';
 
-$sql = "
-    SELECT
-        n.id,
-        n.title,
-        n.description,
-        n.createdAt,
-        n.expiresAt,
-        n.file,
-        n.pin,
-        n.views,
-        n.priority,
-        n.visibility,
-        c.category_name,
-        a.name AS admin_name,
-        COALESCE(nf.files_count, 0) AS files_count
-    FROM notice n
-    INNER JOIN category c ON c.id = n.category
-    INNER JOIN admin a ON a.id = n.admin_id
-    LEFT JOIN (
-        SELECT notice_id, COUNT(*) AS files_count
-        FROM notice_files
-        GROUP BY notice_id
-    ) nf ON nf.notice_id = n.id
-    WHERE n.is_deleted = 0
-      AND n.expiresAt >= NOW()
-";
+if ($isExpiredView) {
+    $sql = "
+        SELECT
+            en.id,
+            en.title,
+            en.description,
+            en.createdAt,
+            en.expiresAt,
+            en.file,
+            en.pin,
+            en.views,
+            en.priority,
+            en.visibility,
+            COALESCE(NULLIF(TRIM(en.category_name), ''), 'Archived Category') AS category_name,
+            COALESCE(NULLIF(TRIM(en.admin_name), ''), 'Archived Admin') AS admin_name,
+            COALESCE(enf.files_count, 0) AS files_count
+        FROM expired_notice en
+        LEFT JOIN (
+            SELECT expired_notice_id, COUNT(*) AS files_count
+            FROM expired_notice_files
+            GROUP BY expired_notice_id
+        ) enf ON enf.expired_notice_id = en.id
+        WHERE 1 = 1
+    ";
+} else {
+    $sql = "
+        SELECT
+            n.id,
+            n.title,
+            n.description,
+            n.createdAt,
+            n.expiresAt,
+            n.file,
+            n.pin,
+            n.views,
+            n.priority,
+            n.visibility,
+            c.category_name,
+            a.name AS admin_name,
+            COALESCE(nf.files_count, 0) AS files_count
+        FROM notice n
+        INNER JOIN category c ON c.id = n.category
+        INNER JOIN admin a ON a.id = n.admin_id
+        LEFT JOIN (
+            SELECT notice_id, COUNT(*) AS files_count
+            FROM notice_files
+            GROUP BY notice_id
+        ) nf ON nf.notice_id = n.id
+        WHERE n.is_deleted = 0
+          AND n.expiresAt >= NOW()
+    ";
+}
 
 $params = [];
 
 if ($search !== '') {
-    $sql .= " AND (n.title LIKE :search OR COALESCE(n.description, '') LIKE :search) ";
-    $params['search'] = '%' . $search . '%';
+    $tableAlias = $isExpiredView ? 'en' : 'n';
+    $sql .= " AND ({$tableAlias}.title LIKE :search_title OR COALESCE({$tableAlias}.description, '') LIKE :search_description) ";
+    $params['search_title'] = '%' . $search . '%';
+    $params['search_description'] = '%' . $search . '%';
 }
 
 if ($categoryId && $categoryId > 0) {
-    $sql .= " AND n.category = :category ";
+    $tableAlias = $isExpiredView ? 'en' : 'n';
+    $sql .= " AND {$tableAlias}.category = :category ";
     $params['category'] = $categoryId;
 }
 
 if ($visibility !== '' && isAllowedVisibility($visibility)) {
-    $sql .= " AND n.visibility = :visibility ";
+    $tableAlias = $isExpiredView ? 'en' : 'n';
+    $sql .= " AND {$tableAlias}.visibility = :visibility ";
     $params['visibility'] = $visibility;
 }
 
 if ($pinnedOnly === 1) {
-    $sql .= " AND n.pin = 1 ";
+    $tableAlias = $isExpiredView ? 'en' : 'n';
+    $sql .= " AND {$tableAlias}.pin = 1 ";
 }
 
-$sql .= " ORDER BY n.pin DESC, n.createdAt DESC ";
+$sql .= $isExpiredView
+    ? " ORDER BY en.expiresAt DESC, en.createdAt DESC "
+    : " ORDER BY n.pin DESC, n.createdAt DESC ";
 
 $stmt = $pdo->prepare($sql);
 foreach ($params as $key => $value) {
@@ -107,13 +142,17 @@ function visibilityColor(string $visibility): string
 ob_start();
 
 if (!$notices) {
+    $emptyHeading = $isExpiredView ? 'No expired notices match your filters.' : 'No active notices match your filters.';
+    $emptyMessage = $isExpiredView
+        ? 'Try a different search, category, visibility, or switch back to active notices.'
+        : 'Try changing category, visibility, or pinned filter.';
     ?>
     <div class="sm:col-span-2 xl:col-span-3 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 p-10 text-center bg-white/80 dark:bg-slate-900/60">
         <div class="mx-auto h-14 w-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
             <i class="fa-regular fa-folder-open text-slate-500 dark:text-slate-300"></i>
         </div>
-        <p class="text-base font-semibold">No active notices match your filters.</p>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Try changing category, visibility, or pinned filter.</p>
+        <p class="text-base font-semibold"><?php echo escape($emptyHeading); ?></p>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1"><?php echo escape($emptyMessage); ?></p>
     </div>
     <?php
 }
