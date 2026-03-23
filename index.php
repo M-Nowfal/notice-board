@@ -14,7 +14,7 @@ $mainJsVersion = (string) (@filemtime(__DIR__ . '/assets/js/main.js') ?: time())
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online Notice Board</title>
+    <title>DigiNotify</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -41,7 +41,7 @@ $mainJsVersion = (string) (@filemtime(__DIR__ . '/assets/js/main.js') ?: time())
                 </div>
                 <div>
                     <p class="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Campus Updates</p>
-                    <h1 class="text-xl md:text-2xl font-bold">Online Notice Board</h1>
+                    <h1 class="text-xl md:text-2xl font-bold">DigiNotify</h1>
                 </div>
             </div>
 

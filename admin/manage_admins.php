@@ -158,7 +158,7 @@ $admins = $adminsStmt->fetchAll();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Admins | Online Notice Board</title>
+    <title>Manage Admins | DigiNotify</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -181,7 +181,7 @@ $admins = $adminsStmt->fetchAll();
         <aside class="hidden lg:block border-r border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/80 p-5">
             <div class="mb-8">
                 <p class="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">Admin Panel</p>
-                <h1 class="text-xl font-bold mt-1">Online Notice Board</h1>
+                <h1 class="text-xl font-bold mt-1">DigiNotify</h1>
                 <p class="text-sm mt-2 text-slate-500 dark:text-slate-400">Welcome, <?php echo escape(getAdminName()); ?></p>
             </div>
             <nav class="space-y-1">

@@ -1,4 +1,4 @@
-﻿-- ONLINE NOTICE BOARD DATABASE
+﻿-- DigiNotify DATABASE
 CREATE DATABASE IF NOT EXISTS online_notice_board;
 USE online_notice_board;
 
